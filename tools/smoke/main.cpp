@@ -161,7 +161,7 @@ static void run_one_dtype(Session& sess, LayerId id, DType dt) {
 }
 
 int main() {
-  std::printf("welvet.mlx smoke 0.01 (forward-only, MLX GPU, no fallback)\n");
+  std::printf("welvet.mlx smoke 0.02 (forward-only, MLX GPU, no fallback)\n");
   auto d = detect();
   print_detect(d);
   print_caps();

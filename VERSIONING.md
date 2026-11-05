@@ -7,6 +7,7 @@ Forward-only Apple MLX GPU backend. Training is **not** part of this board
 |-----|---------|
 | **0.00** | Empty repo scaffold |
 | **0.01** | M0+M1 baseline: MLX GPU session, C ABI, leaf forwards in C++, smoke tool, docs + w2a skeleton |
+| **0.02** | Dense signed — Go Sync/Forward + `TestGoVMLXDense` (all Dense caps dtypes) |
 | **0.x** | `x` = number of **w2a-signed** leaf FormatNone forwards (see [docs/FORWARD_CHECKLIST.md](docs/FORWARD_CHECKLIST.md)) |
 | **1.0.0** | Full README leaf set signed in `w2a` `go_v_mlx` for **f32+f16+bf16** (int/c64 optional credits; not Welvet ×34) |
 

@@ -7,7 +7,9 @@ Machine census for forward-only MLX. Update when signing w2a rows.
 - [x] Detect / Metal+GPU gate (no CPU open path)
 - [x] Session::open_gpu
 - [x] C ABI (`welvet_mlx_c.h`)
-- [x] Dense prepare + execute + one-shot
+- [x] Dense prepare + execute + one-shot (all Dense caps dtypes)
+- [x] Go `dense.SyncToMLX` / `PrepareMLX` / `ForwardMLX` / `BackendMLX`
+- [x] w2a Dense suite (caps / Session×dtypes / Go layer floats)
 - [x] Softmax / RMSNorm / LayerNorm
 - [x] CNN2 / CNN3 / ConvT2 / ConvT3
 - [x] LSTM (composed) / Embedding / Residual

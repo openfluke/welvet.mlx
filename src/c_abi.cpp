@@ -82,7 +82,7 @@ wmlx_status need_layer(const char* layer, const char* dtype) {
 
 extern "C" {
 
-const char* wmlx_version(void) { return "0.01"; }
+const char* wmlx_version(void) { return "0.02"; }
 
 int32_t wmlx_has_mlx(void) { return 1; }
 

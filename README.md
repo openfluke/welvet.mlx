@@ -5,7 +5,7 @@ Public surface is **Welvet-shaped** (layer blanks + `DType`) + **C ABI** (`welve
 
 | | |
 |--|--|
-| **Library** | **0.01** |
+| **Library** | **0.02** |
 | **MLX** | Homebrew / `MLX_ROOT` (tested against **0.32.x**) |
 | **Host** | macOS · Apple silicon · Metal via MLX |
 | **Go** | `nativemlx` · `BackendMLX` · user `SyncToMLX` / `SyncFromMLX` |

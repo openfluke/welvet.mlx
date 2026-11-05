@@ -7,8 +7,8 @@ Forward-only mirror of the leaf-forward section in
 Canonical validation: sibling **w2a** `go_v_mlx` (same protocol as `go_v_qnn`:  
 transfer → create → exec → e2e + Go accuracy).
 
-**Current engine:** `0.01` — M0 GPU session + C ABI + leaf MLX forwards implemented in-library.  
-w2a sign-off rows below start unchecked until `go_v_mlx` evidence lands.
+**Current engine:** `0.02` — Dense fully wired (lib + Go `SyncToMLX`/`ForwardMLX` + `TestGoVMLXDense`).  
+Other leaves still unchecked until their w2a suites land + Metal evidence.
 
 ---
 
@@ -65,7 +65,7 @@ Int / complex columns are separate optional credits (tick when evidenced).
 
 | Layer | Test (planned) | f32 | f16 | bf16 | i8…i64 / u* | c64 | Fully signed (floats) |
 |---|---|:---:|:---:|:---:|:---:|:---:|:---:|
-| Dense | `TestGoVMLXDenseForward` | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
+| Dense | `TestGoVMLXDense` (caps + Session×all + Go Sync/Forward f32/f16/bf16) | [x] | [x] | [x] | [x] | [x] | [x] |
 | Softmax | `TestGoVMLXSoftmax` | [ ] | [ ] | [ ] | — | — | [ ] |
 | RMSNorm | `TestGoVMLXRMSNorm` | [ ] | [ ] | [ ] | — | — | [ ] |
 | LayerNorm | `TestGoVMLXLayerNorm` | [ ] | [ ] | [ ] | — | — | [ ] |
@@ -81,6 +81,10 @@ Int / complex columns are separate optional credits (tick when evidenced).
 | Sequential | `TestGoVMLXSequential` | [ ] | — | — | — | — | [ ] |
 
 Sequential baseline = **f32** tower only.
+
+**Dense (0.02):** libmlx prepare/exec × all Dense caps dtypes; Go `dense/mlx.go`; w2a  
+`TestGoVMLXDense`. Int/c64 = exec+finite credit (not Go f32 bit parity).  
+Re-run on a Metal host and paste bands into RESULTS if you want measured evidence attached.
 
 ### Local smoke (in-repo, not w2a credit)
 
