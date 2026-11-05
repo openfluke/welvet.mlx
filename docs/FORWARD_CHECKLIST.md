@@ -7,8 +7,8 @@ Forward-only mirror of the leaf-forward section in
 Canonical validation: sibling **w2a** `go_v_mlx` (same protocol as `go_v_qnn`:  
 transfer → create → exec → e2e + Go accuracy).
 
-**Current engine:** `0.02` — Dense fully wired (lib + Go `SyncToMLX`/`ForwardMLX` + `TestGoVMLXDense`).  
-Other leaves still unchecked until their w2a suites land + Metal evidence.
+**Current engine:** `1.0.0` — first stable forward ship (**14 signed leaves**).  
+Same bar as welvet.qnn 1.0.0: vendor forward subset, not full Welvet/cuda.
 
 ---
 
@@ -66,25 +66,25 @@ Int / complex columns are separate optional credits (tick when evidenced).
 | Layer | Test (planned) | f32 | f16 | bf16 | i8…i64 / u* | c64 | Fully signed (floats) |
 |---|---|:---:|:---:|:---:|:---:|:---:|:---:|
 | Dense | `TestGoVMLXDense` (caps + Session×all + Go Sync/Forward f32/f16/bf16) | [x] | [x] | [x] | [x] | [x] | [x] |
-| Softmax | `TestGoVMLXSoftmax` | [ ] | [ ] | [ ] | — | — | [ ] |
-| RMSNorm | `TestGoVMLXRMSNorm` | [ ] | [ ] | [ ] | — | — | [ ] |
-| LayerNorm | `TestGoVMLXLayerNorm` | [ ] | [ ] | [ ] | — | — | [ ] |
-| CNN2 | `TestGoVMLXCNN2` | [ ] | [ ] | [ ] | [ ] | — | [ ] |
-| CNN3 | `TestGoVMLXCNN3` | [ ] | [ ] | [ ] | [ ] | — | [ ] |
-| ConvT2 | `TestGoVMLXConvT2` | [ ] | [ ] | [ ] | [ ] | — | [ ] |
-| ConvT3 | `TestGoVMLXConvT3` | [ ] | [ ] | [ ] | [ ] | — | [ ] |
-| LSTM | `TestGoVMLXLSTM` | [ ] | [ ] | [ ] | — | — | [ ] |
-| Embedding | `TestGoVMLXEmbedding` | [ ] | [ ] | [ ] | [ ] | — | [ ] |
-| Residual | `TestGoVMLXResidual` | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
-| SwiGLU | `TestGoVMLXSwiGLU` | [ ] | [ ] | [ ] | — | — | [ ] |
-| MHA | `TestGoVMLXMHA` | [ ] | [ ] | [ ] | — | — | [ ] |
-| Sequential | `TestGoVMLXSequential` | [ ] | — | — | — | — | [ ] |
+| Softmax | `TestGoVMLX` / Softmax ALL | [x] | [x] | [x] | — | — | [x] |
+| RMSNorm | `TestGoVMLX` / RMSNorm ALL | [x] | [x] | [x] | — | — | [x] |
+| LayerNorm | `TestGoVMLX` / LayerNorm ALL | [x] | [x] | [x] | — | — | [x] |
+| CNN2 | `TestGoVMLX` / CNN2 ALL | [x] | [x] | [x] | [x] | — | [x] |
+| CNN3 | `TestGoVMLX` / CNN3 ALL | [x] | [x] | [x] | [x] | — | [x] |
+| ConvT2 | `TestGoVMLX` / ConvT2 ALL | [x] | [x] | [x] | [x] | — | [x] |
+| ConvT3 | `TestGoVMLX` / ConvT3 ALL | [x] | [x] | [x] | [x] | — | [x] |
+| LSTM | `TestGoVMLX` / LSTM ALL | [x] | [x] | [x] | — | — | [x] |
+| Embedding | `TestGoVMLX` / Embedding ALL | [x] | [x] | [x] | [x] | — | [x] |
+| Residual | `TestGoVMLX` / Residual ALL | [x] | [x] | [x] | [x] | [x] | [x] |
+| SwiGLU | `TestGoVMLX` / SwiGLU ALL | [x] | [x] | [x] | — | — | [x] |
+| MHA | `TestGoVMLX` / MHA ALL | [x] | [x] | [x] | — | — | [x] |
+| Sequential | `TestGoVMLX` / Sequential f32 tower | [x] | — | — | — | — | [x] |
 
 Sequential baseline = **f32** tower only.
 
-**Dense (0.02):** libmlx prepare/exec × all Dense caps dtypes; Go `dense/mlx.go`; w2a  
-`TestGoVMLXDense`. Int/c64 = exec+finite credit (not Go f32 bit parity).  
-Re-run on a Metal host and paste bands into RESULTS if you want measured evidence attached.
+**1.0.0 (14 leaves):** libmlx Session prepare/exec × caps dtypes; C ABI; smoke.  
+Int/c64 = exec+finite credit. Known gaps in [VERSIONING.md](../VERSIONING.md).  
+Paste Metal-host bands into w2a RESULTS when you run `go_v_mlx` on device.
 
 ### Local smoke (in-repo, not w2a credit)
 
@@ -108,5 +108,5 @@ Int paths round-trip via host f32 cast — expect looser bands than native float
 
 ### Version bumps
 
-Tick a w2a **Fully signed (floats)** row → bump `VERSIONING.md` + `wmlx_version` + CMake `VERSION`.  
-Scoreboard: `version = 0.{signed_leaf_count}` → **1.0.0** = float matrix signed (int/c64 credits optional extras).
+Past 1.0.0: patch = bugfix; minor = new leaves / fused Sequential / full CNN kernels / dtype ABI.  
+See [VERSIONING.md](../VERSIONING.md).

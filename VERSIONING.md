@@ -1,17 +1,26 @@
 # welvet.mlx versioning
 
-Forward-only Apple MLX GPU backend. Training is **not** part of this board  
+Forward-only Apple MLX GPU backend (`libmlx` only). Training is **not** part of this board  
 (see `welvet.metal` / `welvet.cuda` for train engines).
 
 | Tag | Meaning |
 |-----|---------|
 | **0.00** | Empty repo scaffold |
-| **0.01** | M0+M1 baseline: MLX GPU session, C ABI, leaf forwards in C++, smoke tool, docs + w2a skeleton |
-| **0.02** | Dense signed — Go Sync/Forward + `TestGoVMLXDense` (all Dense caps dtypes) |
-| **0.x** | `x` = number of **w2a-signed** leaf FormatNone forwards (see [docs/FORWARD_CHECKLIST.md](docs/FORWARD_CHECKLIST.md)) |
-| **1.0.0** | Full README leaf set signed in `w2a` `go_v_mlx` for **f32+f16+bf16** (int/c64 optional credits; not Welvet ×34) |
+| **0.01** | M0+M1 baseline: session, C ABI, leaf forwards, smoke, docs |
+| **0.02** | Dense signed |
+| **0.15** | 14 leaves + Session×caps matrix |
+| **1.0.0** | First stable forward ship — C ABI + 14-leaf × caps dtype matrix (f32/f16/bf16 + int/c64 where capped). Same bar as welvet.qnn 1.0.0 for “vendor forward subset” |
+| **1.x.y** | Apple MLX / macOS only (this repo). Patch = bugfix; minor = new leaves/dtypes/fused Sequential / CNN full kernels |
 
-Patch versions (`0.01.y`) = bugfix without new signed leaves.
+## Known 1.0.0 gaps (honest)
+
+- Sequential = host ping-pong of child MLX evals (fused single graph = later)
+- C ABI `seq_push_*` is **f32-only** today (C++ Sequential can mix child dtypes)
+- CNN*/ConvT* C ABI / Go path oriented around **1×1** kernels
+- Int/c64 = exec credit; float leaves are the parity target
+- No Metal-host RESULTS.md bands attached in-tree yet (run `w2a` `go_v_mlx` on device)
+- Go `nativemlx` / `BackendMLX` lives in sibling **welvet** — not this tree
+- Not in baseline: CNN1, ConvT1, RNN, Mamba, GDN, KMeans, Parallel, Stack, train, Welvet ×34/quant
 
 ## Sibling vendor repos (do not merge into this tree)
 

@@ -5,7 +5,7 @@ Public surface is **Welvet-shaped** (layer blanks + `DType`) + **C ABI** (`welve
 
 | | |
 |--|--|
-| **Library** | **0.02** |
+| **Library** | **1.0.0** |
 | **MLX** | Homebrew / `MLX_ROOT` (tested against **0.32.x**) |
 | **Host** | macOS · Apple silicon · Metal via MLX |
 | **Go** | `nativemlx` · `BackendMLX` · user `SyncToMLX` / `SyncFromMLX` |
@@ -102,9 +102,10 @@ brew install mlx          # or set MLX_ROOT
 
 ---
 
-## Next (0.x → 1.0.0)
+## Next (1.x)
 
-1. Sign every leaf in `w2a` `go_v_mlx` (checklist)
-2. Prepare-once for norms / softmax / cnn
-3. Quant / int compute paths (if needed)
-4. Optional volume forward (still no train)
+1. Fused Sequential (stay on-GPU between children)
+2. C ABI `seq_push_*` dtype args (mixed-dtype stacks via FFI)
+3. Full CNN/ConvT kernels (beyond 1×1 path)
+4. Metal-host `w2a` RESULTS bands
+5. Optional: CNN1 / RNN / quant mapping (still no train)
