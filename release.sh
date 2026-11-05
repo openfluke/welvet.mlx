@@ -179,14 +179,19 @@ SMOKE_VER="$("$PACKAGE/bin/welvet_mlx_smoke" --version 2>/dev/null | head -1 || 
 
 NATIVE_CHECK="skipped (--skip-tests)"
 if [[ "$SKIP_TESTS" -eq 0 ]]; then
-  # Full smoke needs Metal GPU; Unavailable is a hard fail (no CPU fallback).
-  if "$PACKAGE/bin/welvet_mlx_smoke" >/tmp/welvet_mlx_release_smoke.log 2>&1; then
+  # Full smoke needs Metal GPU; session-open failure is a hard Unavailable (no CPU fallback).
+  set +e
+  "$PACKAGE/bin/welvet_mlx_smoke" >/tmp/welvet_mlx_release_smoke.log 2>&1
+  smoke_rc=$?
+  set -e
+  if [[ "$smoke_rc" -eq 0 ]]; then
     NATIVE_CHECK="passed: packaged C ABI + MLX GPU forward smoke"
+  elif [[ "$smoke_rc" -eq 2 ]] || grep -q 'GPU session open failed' /tmp/welvet_mlx_release_smoke.log; then
+    fail "GPU smoke: MLX GPU unavailable (no CPU fallback). Fix Metal/MLX or pass --skip-tests. Log: /tmp/welvet_mlx_release_smoke.log"
   else
-    if grep -qiE 'Unavailable|GPU session open failed|Metal' /tmp/welvet_mlx_release_smoke.log; then
-      fail "GPU smoke failed (Metal/MLX unavailable). Fix GPU or pass --skip-tests. Log: /tmp/welvet_mlx_release_smoke.log"
-    fi
-    fail "GPU smoke failed. Log: /tmp/welvet_mlx_release_smoke.log"
+    echo "---- smoke log (tail) ----" >&2
+    tail -40 /tmp/welvet_mlx_release_smoke.log >&2 || true
+    fail "GPU smoke failed (exit $smoke_rc). Log: /tmp/welvet_mlx_release_smoke.log"
   fi
 fi
 

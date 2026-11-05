@@ -15,6 +15,9 @@ bool mlx_supports(LayerId layer, DType dtype) {
 
   switch (layer) {
     case LayerId::Dense:
+      // MLX matmul is float/complex only (Welvet/w2a uses float paths).
+      return fl || cx;
+
     case LayerId::Residual:
       return fl || ix || cx;
 
@@ -22,8 +25,10 @@ bool mlx_supports(LayerId layer, DType dtype) {
     case LayerId::Cnn3:
     case LayerId::ConvT2:
     case LayerId::ConvT3:
+      // MLX conv is floating-point only.
+      return fl;
+
     case LayerId::Embedding:
-      // Integer / float tensors OK on MLX GPU for these ops; complex later.
       return fl || ix;
 
     case LayerId::Softmax:
