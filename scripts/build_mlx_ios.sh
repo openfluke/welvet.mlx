@@ -2,7 +2,11 @@
 # Cross-build Apple MLX (libmlx.a + mlx.metallib) for iPhoneOS arm64.
 # Prerequisite: Xcode MetalToolchain
 #   xcodebuild -downloadComponent MetalToolchain
-#   xcrun -sdk iphoneos metal --version
+#   xcrun metal -v
+#
+# Note: `xcrun -sdk iphoneos metal` is broken on some Xcode 26 installs even
+# after MetalToolchain is present. We invoke `$(xcrun -f metal)` with an
+# explicit air64-apple-ios target + iphoneos sysroot instead.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TP="$ROOT/third_party"
@@ -14,13 +18,26 @@ MLX_BUILD="${MLX_BUILD:-$TP/mlx-build-ios}"
 MLX_PREFIX="${MLX_PREFIX:-$TP/mlx-ios-prefix}"
 DEPLOY="${IOS_DEPLOYMENT_TARGET:-15.0}"
 
-if ! xcrun -sdk iphoneos metal --version >/dev/null 2>&1; then
+if ! xcrun metal -v >/dev/null 2>&1; then
   echo "MetalToolchain missing. Install with:" >&2
   echo "  xcodebuild -downloadComponent MetalToolchain" >&2
+  echo "  xcrun metal -v" >&2
   exit 1
 fi
 
+METAL_BIN="$(xcrun -f metal)"
+SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+CXX="$(xcrun --sdk iphoneos --find clang++)"
 mkdir -p "$TP"
+
+# Wrapper: metal compiler for iPhoneOS without broken `xcrun -sdk iphoneos metal`.
+# -std=metal3.1 avoids bf16 math redefinitions with MetalToolchain 32023+.
+WRAP="$TP/metal_ios_wrap.sh"
+cat > "$WRAP" <<EOF
+#!/usr/bin/env bash
+exec "$METAL_BIN" -target air64-apple-ios${DEPLOY} -isysroot "$SDK" -std=metal3.1 "\$@"
+EOF
+chmod +x "$WRAP"
 
 # --- sources (tarballs; avoids git-hooks issues) ---
 if [[ ! -f "$MLX_SRC/CMakeLists.txt" ]]; then
@@ -48,13 +65,13 @@ if [[ ! -f "$FMT_SRC/CMakeLists.txt" ]]; then
   mv "$TP/fmt-12.1.0" "$FMT_SRC"
 fi
 
-# --- patch mlx once for iOS metallib + local deps ---
-python3 - "$MLX_SRC" <<'PY'
+# --- patch mlx for iOS metallib + local deps + metal wrap ---
+python3 - "$MLX_SRC" "$WRAP" <<'PY'
 import sys
 from pathlib import Path
 src = Path(sys.argv[1])
+wrap = Path(sys.argv[2]).resolve()
 
-# metal_cpp local
 p = src / "CMakeLists.txt"
 t = p.read_text()
 old = """  set(METAL_CPP_URL
@@ -88,15 +105,18 @@ if old_fmt in t:
     t = t.replace(old_fmt, new_fmt)
 
 needle = "  else()\n    set(MLX_METAL_VERSION 0)\n  endif()\n"
-if "MLX_METAL_SDK" not in t and needle in t:
+if "MLX_METAL_WRAP" not in t and needle in t:
     t = t.replace(
         needle,
         needle
-        + """
+        + f"""
+  # welvet.mlx iOS: use metal wrap (air64-apple-ios + iphoneos sysroot)
   if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
-    set(MLX_METAL_SDK "iphoneos" CACHE STRING "xcrun sdk for mlx metallib")
+    set(MLX_METAL_WRAP "{wrap}" CACHE FILEPATH "metal compiler wrapper for iOS")
+    set(MLX_METAL_SDK "iphoneos" CACHE STRING "unused; wrap handles target")
     set(MLX_METAL_MIN_FLAG "-miphoneos-version-min=")
   else()
+    set(MLX_METAL_WRAP "" CACHE FILEPATH "")
     set(MLX_METAL_SDK "macosx" CACHE STRING "xcrun sdk for mlx metallib")
     set(MLX_METAL_MIN_FLAG "-mmacosx-version-min=")
   endif()
@@ -107,7 +127,13 @@ p.write_text(t)
 for rel in ["cmake/extension.cmake", "mlx/backend/metal/kernels/CMakeLists.txt"]:
     p = src / rel
     t = p.read_text()
-    t = t.replace("xcrun -sdk macosx metal", "xcrun -sdk ${MLX_METAL_SDK} metal")
+    # Prefer wrap on iOS; fall back to xcrun -sdk for macOS.
+    t = t.replace(
+        "xcrun -sdk ${MLX_METAL_SDK} metal",
+        "bash ${MLX_METAL_WRAP}",
+    )
+    # If wrap empty on macOS path of a mixed tree, also keep a guard — for iOS-only
+    # builds MLX_METAL_WRAP is always set by build_mlx_ios.sh.
     t = t.replace(
         "-mmacosx-version-min=${MTLLIB_DEPLOYMENT_TARGET}",
         "${MLX_METAL_MIN_FLAG}${MTLLIB_DEPLOYMENT_TARGET}",
@@ -116,12 +142,13 @@ for rel in ["cmake/extension.cmake", "mlx/backend/metal/kernels/CMakeLists.txt"]
         "-mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET}",
         "${MLX_METAL_MIN_FLAG}${CMAKE_OSX_DEPLOYMENT_TARGET}",
     )
+    # Earlier patch may have left xcrun -sdk ${MLX_METAL_SDK} already — done above.
+    # Also catch any remaining macosx hardcodes.
+    t = t.replace("xcrun -sdk macosx metal", "bash ${MLX_METAL_WRAP}")
     p.write_text(t)
-print("mlx iOS patches applied")
+print("mlx iOS patches applied; wrap=", wrap)
 PY
 
-SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
-CXX="$(xcrun --sdk iphoneos --find clang++)"
 rm -rf "$MLX_BUILD" "$MLX_PREFIX"
 cmake -S "$MLX_SRC" -B "$MLX_BUILD" -G "Unix Makefiles" \
   -DCMAKE_SYSTEM_NAME=iOS \
@@ -139,14 +166,15 @@ cmake -S "$MLX_SRC" -B "$MLX_BUILD" -G "Unix Makefiles" \
   -DMLX_BUILD_GGUF=OFF \
   -DMLX_BUILD_SAFETENSORS=OFF \
   -DBUILD_SHARED_LIBS=OFF \
+  -DMLX_METAL_WRAP="$WRAP" \
   -DMLX_METAL_SDK=iphoneos \
   -DFMT_INSTALL=OFF
 
 cmake --build "$MLX_BUILD" -j"$(sysctl -n hw.ncpu 2>/dev/null || echo 4)"
 cmake --install "$MLX_BUILD"
 
-# Ensure metallib lands next to lib for runtime lookup.
 find "$MLX_BUILD" -name 'mlx.metallib' -exec cp -f {} "$MLX_PREFIX/lib/" \; 2>/dev/null || true
 
 echo "MLX iOS prefix: $MLX_PREFIX"
-ls -la "$MLX_PREFIX/lib" "$MLX_PREFIX/include/mlx" | head
+ls -la "$MLX_PREFIX/lib" "$MLX_PREFIX/include/mlx" | head -40
+file "$MLX_PREFIX/lib/libmlx.a" "$MLX_PREFIX/lib/mlx.metallib" 2>/dev/null || true

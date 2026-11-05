@@ -48,16 +48,18 @@ endif()
 message(STATUS "welvet.mlx: MLX at ${MLX_ROOT} (ios=${IOS})")
 
 if(IOS)
-  find_library(MLX_LIB
-    NAMES mlx
-    HINTS "${MLX_ROOT}/lib"
-    NO_DEFAULT_PATH
-    REQUIRED
-  )
-  # Prefer static archive for device link.
+  # Device link: prefer static archive (find_library often skips .a on iOS).
   if(EXISTS "${MLX_ROOT}/lib/libmlx.a")
     set(MLX_LIB "${MLX_ROOT}/lib/libmlx.a")
+  else()
+    find_library(MLX_LIB
+      NAMES mlx
+      HINTS "${MLX_ROOT}/lib"
+      NO_DEFAULT_PATH
+      REQUIRED
+    )
   endif()
+  message(STATUS "welvet.mlx: linking ${MLX_LIB}")
 else()
   find_library(MLX_LIB mlx HINTS "${MLX_ROOT}/lib" REQUIRED)
 endif()
