@@ -20,3 +20,7 @@ CMakeFiles/
 # Cross-build scratch (MLX / fmt / metal_cpp for iOS)
 third_party/
 build-ios-arm64/
+
+# Release packaging
+/dist/
+/build-release/
