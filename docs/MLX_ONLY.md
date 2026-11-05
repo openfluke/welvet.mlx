@@ -58,9 +58,9 @@ See [FORWARD_CHECKLIST.md](FORWARD_CHECKLIST.md).
 ```sh
 ./scripts/build_macos.sh
 ./build/welvet_mlx_smoke
-./scripts/macos_build_w2a.sh --smoke
-# after nativemlx lands:
-# ./scripts/macos_build_w2a.sh
+./scripts/macos_install_go.sh          # → welvet/native/mlx/ + MANIFEST
+./scripts/macos_build_w2a.sh           # install + w2a go_v_mlx
+./scripts/macos_build_w2a.sh --smoke   # install + C++ smoke only
 ```
 
 Requires: macOS, CMake ≥ 3.20, C++20, Homebrew `mlx` (or `MLX_ROOT`).
