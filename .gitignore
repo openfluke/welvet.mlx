@@ -16,3 +16,7 @@ compile_commands.json
 CMakeCache.txt
 CMakeFiles/
 .DS_Store
+
+# Cross-build scratch (MLX / fmt / metal_cpp for iOS)
+third_party/
+build-ios-arm64/

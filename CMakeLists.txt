@@ -6,17 +6,30 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 if(NOT APPLE)
-  message(FATAL_ERROR "welvet.mlx requires macOS (Apple MLX / Metal)")
+  message(FATAL_ERROR "welvet.mlx requires an Apple host toolchain (macOS/iOS)")
+endif()
+
+if(IOS)
+  set(WELVET_MLX_PLATFORM_IOS ON)
+else()
+  set(WELVET_MLX_PLATFORM_MACOS ON)
 endif()
 
 option(WELVET_MLX_BUILD_TOOLS "Build smoke executable" ON)
+option(WELVET_MLX_BUILD_SHARED "Build shared libwelvet_mlx (macOS)" ON)
 
-# Prefer Homebrew MLX; allow override via MLX_ROOT / MLX_DIR.
+# iOS: static only, no host smoke binary.
+if(IOS)
+  set(WELVET_MLX_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+  set(WELVET_MLX_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
+endif()
+
+# Prefer Homebrew MLX on macOS; on iOS require MLX_ROOT with libmlx.a (iphoneos).
 set(MLX_ROOT "$ENV{MLX_ROOT}" CACHE PATH "Apple MLX install prefix")
 if(NOT MLX_ROOT AND DEFINED ENV{MLX_DIR})
   set(MLX_ROOT "$ENV{MLX_DIR}" CACHE PATH "Apple MLX install prefix" FORCE)
 endif()
-if(NOT MLX_ROOT)
+if(NOT MLX_ROOT AND NOT IOS)
   foreach(cand /opt/homebrew /usr/local)
     if(EXISTS "${cand}/include/mlx/mlx.h" AND EXISTS "${cand}/lib/libmlx.dylib")
       set(MLX_ROOT "${cand}" CACHE PATH "Apple MLX install prefix" FORCE)
@@ -27,11 +40,28 @@ endif()
 
 if(NOT MLX_ROOT OR NOT EXISTS "${MLX_ROOT}/include/mlx/mlx.h")
   message(FATAL_ERROR
-    "welvet.mlx: MLX not found. brew install mlx  (or set MLX_ROOT). No stub / no fallback.")
+    "welvet.mlx: MLX not found.\n"
+    "  macOS: brew install mlx  (or set MLX_ROOT)\n"
+    "  iOS:   build MLX for iphoneos and set MLX_ROOT to that prefix (libmlx.a + headers).\n"
+    "         See scripts/build_ios.sh / scripts/build_mlx_ios.sh")
 endif()
-message(STATUS "welvet.mlx: MLX at ${MLX_ROOT}")
+message(STATUS "welvet.mlx: MLX at ${MLX_ROOT} (ios=${IOS})")
 
-find_library(MLX_LIB mlx HINTS "${MLX_ROOT}/lib" REQUIRED)
+if(IOS)
+  find_library(MLX_LIB
+    NAMES mlx
+    HINTS "${MLX_ROOT}/lib"
+    NO_DEFAULT_PATH
+    REQUIRED
+  )
+  # Prefer static archive for device link.
+  if(EXISTS "${MLX_ROOT}/lib/libmlx.a")
+    set(MLX_LIB "${MLX_ROOT}/lib/libmlx.a")
+  endif()
+else()
+  find_library(MLX_LIB mlx HINTS "${MLX_ROOT}/lib" REQUIRED)
+endif()
+
 find_library(METAL_FRAMEWORK Metal REQUIRED)
 find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
 find_library(ACCELERATE_FRAMEWORK Accelerate)
@@ -49,15 +79,21 @@ set(WMLX_SOURCES
 add_library(welvet_mlx STATIC ${WMLX_SOURCES})
 add_library(welvet_mlx::welvet_mlx ALIAS welvet_mlx)
 
-add_library(welvet_mlx_shared SHARED ${WMLX_SOURCES})
-set_target_properties(welvet_mlx_shared PROPERTIES
-  OUTPUT_NAME welvet_mlx
-  MACOSX_RPATH ON
-  BUILD_WITH_INSTALL_RPATH OFF
-  INSTALL_NAME_DIR "@rpath"
-)
+set(_wmlx_targets welvet_mlx)
 
-foreach(tgt welvet_mlx welvet_mlx_shared)
+if(WELVET_MLX_BUILD_SHARED)
+  add_library(welvet_mlx_shared SHARED ${WMLX_SOURCES})
+  set_target_properties(welvet_mlx_shared PROPERTIES
+    OUTPUT_NAME welvet_mlx
+    MACOSX_RPATH ON
+    BUILD_WITH_INSTALL_RPATH OFF
+    INSTALL_NAME_DIR "@rpath"
+  )
+  target_compile_definitions(welvet_mlx_shared PRIVATE WELVET_MLX_BUILD_SHARED)
+  list(APPEND _wmlx_targets welvet_mlx_shared)
+endif()
+
+foreach(tgt ${_wmlx_targets})
   target_include_directories(${tgt}
     PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -66,7 +102,11 @@ foreach(tgt welvet_mlx welvet_mlx_shared)
       ${CMAKE_CURRENT_SOURCE_DIR}/src
       "${MLX_ROOT}/include"
   )
-  target_compile_definitions(${tgt} PUBLIC WELVET_MLX=1)
+  target_compile_definitions(${tgt} PUBLIC
+    WELVET_MLX=1
+    $<$<BOOL:${WELVET_MLX_PLATFORM_MACOS}>:WELVET_OS_MACOS=1>
+    $<$<BOOL:${WELVET_MLX_PLATFORM_IOS}>:WELVET_OS_IOS=1>
+  )
   target_link_libraries(${tgt} PUBLIC
     ${MLX_LIB}
     ${METAL_FRAMEWORK}
@@ -75,21 +115,23 @@ foreach(tgt welvet_mlx welvet_mlx_shared)
   if(ACCELERATE_FRAMEWORK)
     target_link_libraries(${tgt} PUBLIC ${ACCELERATE_FRAMEWORK})
   endif()
-  # Keep MLX dylib findable next to the shared lib / via brew.
-  target_link_options(${tgt} PUBLIC "LINKER:-rpath,${MLX_ROOT}/lib")
+  if(NOT IOS)
+    # Keep MLX dylib findable next to the shared lib / via brew (macOS only).
+    target_link_options(${tgt} PUBLIC "LINKER:-rpath,${MLX_ROOT}/lib")
+  endif()
 endforeach()
-
-target_compile_definitions(welvet_mlx_shared PRIVATE WELVET_MLX_BUILD_SHARED)
 
 if(WELVET_MLX_BUILD_TOOLS)
   add_executable(welvet_mlx_smoke tools/smoke/main.cpp)
   target_link_libraries(welvet_mlx_smoke PRIVATE welvet_mlx)
 endif()
 
-install(TARGETS welvet_mlx welvet_mlx_shared
+install(TARGETS ${_wmlx_targets}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
 )
 install(DIRECTORY include/welvet_mlx DESTINATION include)
 install(FILES include/welvet_mlx_c.h DESTINATION include)
+
+message(STATUS "welvet.mlx platform: ${CMAKE_SYSTEM_NAME} shared=${WELVET_MLX_BUILD_SHARED}")
